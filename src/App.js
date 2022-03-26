@@ -6,7 +6,6 @@ import TableBody from '@material-ui/core/TableBody';
 import TableCell from '@material-ui/core/TableCell';
 import TableContainer from '@material-ui/core/TableContainer';
 import TableHead from '@material-ui/core/TableHead';
-import TablePagination from '@material-ui/core/TablePagination';
 import TableRow from '@material-ui/core/TableRow';
 import GitHubIcon from '@material-ui/icons/GitHub';
 import AppBar from '@material-ui/core/AppBar';
@@ -17,6 +16,8 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import Slide from '@material-ui/core/Slide';
+import Backdrop from '@material-ui/core/Backdrop';
+import CircularProgress from '@material-ui/core/CircularProgress';
 
 const columns = [
   { id: 'position', label: 'Position', minWidth: 50 },
@@ -36,9 +37,6 @@ const columns = [
     align: 'right'
   }
 ];
-const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
 
 const StyledTableCell = withStyles((theme) => ({
   head: {
@@ -47,6 +45,7 @@ const StyledTableCell = withStyles((theme) => ({
   },
   body: {
     fontSize: 14,
+    cursor: 'pointer',
   },
 }))(TableCell);
 
@@ -58,116 +57,145 @@ const StyledTableRow = withStyles((theme) => ({
   },
 }))(TableRow);
 
-function createData(username, avatar, prnums, score, prlinks) {
-  return { username, avatar, prnums, score, prlinks };
-}
 
-const rows = [];
-
-const useStyles = makeStyles({
-  root: {
-    width: '100%',
-  },
-  container: {
-    maxHeight: 440,
-  },
-  appbar: {
-    padding: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(to right, #EF971A, #FF512E)"
-
-  },
-  leaderimg: {
-    width: 100,
-    borderRadius: 1000
-  },
-  leaderimgbig: {
-    width: 130,
-    borderRadius: 1000
-  },
-  leaderdiv: {
-    width: "100%",
-    justifyContent: "space-between"
-  },
-  popover: {
-    pointerEvents: 'none',
+const useStyles = makeStyles((theme) => {
+  return {
+    root: {
+      width: '100%',
+    },
+    container: {
+      maxHeight: 440,
+    },
+    appbar: {
+      padding: 25,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "black"
+    },
+    leaderimg: {
+      width: 100,
+      borderRadius: 1000,
+      [theme.breakpoints.down(1200)]: {
+        width: 50,
+      }
+    },
+    leaderimgbig: {
+      width: 150,
+      borderRadius: 1000,
+      [theme.breakpoints.down(1200)]: {
+        width: 90,
+      }
+    },
+    popover: {
+      pointerEvents: 'none',
+    },
+    levelbadge: {
+      padding: 10,
+      borderRadius: 5,
+      backgroundColor: '#f5f5f5',
+      marginRight: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    leaders: {
+      [theme.breakpoints.down(1200)]: {
+        padding: "0px 50px",
+        fontSize: "12px"
+      },
+      [theme.breakpoints.down(700)]: {
+        padding: "0px 0px",
+      }
+    },
+    mainroot: {
+      paddingLeft: 100, paddingRight: 100, paddingTop: 50, paddingBottom: 50, textAlign: "center",
+      [theme.breakpoints.down(1200)]: {
+        padding: 20
+      }
+    },
+    backdrop: {
+      zIndex: theme.zIndex.drawer + 1,
+      color: '#fff',
+    },
   }
 });
 
 
 export default function BasicTable() {
   const classes = useStyles();
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
-  const [searched, setSearched] = useState("")
   let [leaderss, setLeaderss] = useState({});
-  let [timestamp, setTimsestamp] = useState("");
   let [links, setLinks] = useState("");
-  const requestSearch = (searchedVal) => {
-    const filteredRows = rows.filter((row) => {
-      return row.username[0].toLowerCase().includes(searchedVal.toLowerCase());
-    });
-
-    setSearched(filteredRows);
-  };;
-
-  const cancelSearch = () => {
-    setSearched("");
-    requestSearch(searched);
-  };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
-  };
-
+  let [login, setLogin] = useState("");
+  let [score, setScore] = useState("");
+  let [avatar, setAvatar] = useState("");
+  let [lastupdated, setLastupdated] = useState("");
+  const [openn, setOpenn] = React.useState(true);
+  let [leveldata, setLeveldata] = useState({
+    level0: 0,
+    level1: 0,
+    level2: 0,
+    level3: 0,
+    level4: 0,
+  });
+  let rows = [];
+  function createData(username, avatar, prnums, score, prlinks, level0, level1, level2, level3, level4) {
+    return { username, avatar, prnums, score, prlinks, level0, level1, level2, level3, level4 };
+  }
   useEffect(() => {
-    fetch("https://gssocleaderboardapi.herokuapp.com/leaderboard").then(res => res.json()).then(data => {
+    fetch("https://gssoc22leaderboard.herokuapp.com/OSLeaderboard").then(res => res.json()).then(data => {
+      data.leaderboard.sort(function (a, b) { return b.score - a.score || b.level4 - a.level4 || b.level3 - a.level3 || b.level2 - a.level2 || b.level1 - a.level1 || b.level0 - a.level0 || a.login < b.login });
       setLeaderss(data.leaderboard);
-      setTimsestamp(data.last_updated);
+      setOpenn(false);
+      setLastupdated(data.updatedTimestring);
     });
   }, []);
+
+  for (let leader in leaderss) {
+    rows.push(createData([leaderss[leader].login, leaderss[leader].url], leaderss[leader].avatar_url, leaderss[leader].pr_urls.filter((item, i, ar) => ar.indexOf(item) === i).length, leaderss[leader].score, leaderss[leader].profile_url, leaderss[leader].pr_urls, leaderss[leader].level0, leaderss[leader].level1, leaderss[leader].level2, leaderss[leader].level3, leaderss[leader].level4))
+  }
 
   const [open, setOpen] = React.useState(false);
   let prlinks = []
   let handleClickOpen = (num) => {
     setOpen(true);
-    for (let link in leaderss[num].pr_links) {
+    for (let link in leaderss[num].pr_urls) {
 
-      prlinks.push(leaderss[num].pr_links[link] + "\n\n\n\n");
+      prlinks.push(leaderss[num].pr_urls[link] + "\n\n\n\n");
 
     }
-    setLinks(prlinks)
+    let unique = prlinks.filter((item, i, ar) => ar.indexOf(item) === i);
+    setLinks(unique)
+    setLeveldata({
+      level0: leaderss[num].level0,
+      level1: leaderss[num].level1,
+      level2: leaderss[num].level2,
+      level3: leaderss[num].level3,
+      level4: leaderss[num].level4,
+    });
+    setLogin(leaderss[num].login);
+    setAvatar(leaderss[num].avatar_url);
+    setScore(leaderss[num].score);
   };
 
   const handleClose = () => {
     prlinks = []
     setOpen(false);
   };
-
-
-
-  for (let leader in leaderss) {
-    rows.push(createData([leaderss[leader].login, leaderss[leader].profile_url], leaderss[leader].avatar_url, leaderss[leader].pr_count, leaderss[leader].score, leaderss[leader].profile_url, leaderss[leader].pr_links))
-  }
   return (
     <div>
       <AppBar position="static" className={classes.appbar}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <img src="https://gssoc.girlscript.tech/images/type.png" style={{ width: 220, height: 50, marginTop: 5, marginRight: 30 }} />
-          <h2>Leaderboard</h2>
-        </div>
+        <img src="https://github.com/GSSoC-Web/gssoc-assets/blob/main/Logos/GS_logo_White.png?raw=true" style={{ width: 300, height: "auto", marginTop: 5, marginRight: 30 }} />
+        <h2>Leaderboard - 2022</h2>
       </AppBar>
-      <div style={{ paddingLeft: 100, paddingRight: 100, paddingTop: 50, paddingBottom: 50, textAlign: "center" }}>
-        <div style={{ marginBottom: 40, marginTop: 20, alignItems: "center", display: "flex", justifyContent: "center" }}>
+      <Backdrop className={classes.backdrop} open={openn}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
+      <div style={{}} className={classes.mainroot}>
+        <div style={{ marginBottom: 40, marginTop: 60, alignItems: "center", display: "flex", justifyContent: "space-between" }} className={classes.leaders}>
 
-          <div style={{ marginRight: 200, marginTop: 50 }}>
+          <div>
             <img src={rows[1] !== undefined ? rows[1].avatar : null} className={classes.leaderimg} />
             <h3>2. {rows[1] !== undefined ? rows[1].username[0] : null}</h3>
 
@@ -176,15 +204,16 @@ export default function BasicTable() {
             <img src={rows[1] !== undefined ? rows[0].avatar : null} className={classes.leaderimgbig} />
             <h3>1. {rows[1] !== undefined ? rows[0].username[0] : null}</h3>
           </div>
-          <div style={{ marginLeft: 200, marginTop: 50, textAlign: "center" }}>
+          <div>
             <img src={rows[1] !== undefined ? rows[2].avatar : null} className={classes.leaderimg} />
             <h3>3. {rows[1] !== undefined ? rows[2].username[0] : null}</h3>
           </div>
 
         </div>
-        <Paper style={{ width: "auto", background: "#F5F5F5", padding: 5, textAlign: "center" }}>
-          <p>Last Updated: {timestamp} </p>
-        </Paper>
+
+        <div style={{ backgroundColor: "#E5F6FD", padding: 5, borderRadius: 5 }}>
+          <p style={{ color: "#024361", fontSize: 15 }}>The leaderboard was last updated on: <b>{lastupdated}</b></p>
+        </div>
 
         <Paper>
           {/* <SearchBar
@@ -208,7 +237,7 @@ export default function BasicTable() {
                 </StyledTableRow>
               </TableHead>
               <TableBody>
-                {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
+                {rows.map((row) => {
                   return (
                     // style = {{ display: rows.indexOf(row) === 0 || rows.indexOf(row) === 1 || rows.indexOf(row) === 2 ? "none" : null }
                     <StyledTableRow hover role="checkbox" tabIndex={-1} key={row.username}  >
@@ -216,7 +245,7 @@ export default function BasicTable() {
                         const value = row[column.id];
                         return (
                           <StyledTableCell key={column.id} align={column.align} onClick={() => { handleClickOpen(rows.indexOf(row)); }}>
-                            {column.id === 'avatar' ? <Avatar alt="Remy Sharp" src={value} className={classes.small} /> : column.id === 'position' ? rows.indexOf(row) + 1 : column.id === 'username' ? <div style={{ display: "flex", alignItems: "center" }}><GitHubIcon style={{ marginRight: 20 }} /><a href={value[1]} style={{ textDecoration: "none", color: "black" }}>{value[0]}</a></div> : value}
+                            {column.id === 'avatar' ? <Avatar alt="Remy Sharp" src={value} /> : column.id === 'position' ? rows.indexOf(row) + 1 : column.id === 'username' ? <div style={{ display: "flex", alignItems: "center" }}><GitHubIcon style={{ marginRight: 20 }} /><a href={value[1]} style={{ textDecoration: "none", color: "black" }}>{value[0]}</a></div> : value}
 
                           </StyledTableCell>
                         );
@@ -228,34 +257,28 @@ export default function BasicTable() {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 100]}
-            component="div"
-            count={rows.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onChangePage={handleChangePage}
-            onChangeRowsPerPage={handleChangeRowsPerPage}
-          />
         </Paper>
         <Dialog
           open={open}
-          TransitionComponent={Transition}
-          keepMounted
           onClose={handleClose}
           aria-labelledby="alert-dialog-slide-title"
           aria-describedby="alert-dialog-slide-description"
         >
-          <DialogTitle id="alert-dialog-slide-title">{"PR Links:"}</DialogTitle>
+          <DialogTitle id="alert-dialog-slide-title">{login + "'s Stats"}</DialogTitle>
           <DialogContent>
             <DialogContentText id="alert-dialog-slide-description">
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <img alt="Remy Sharp" src={avatar} className={classes.leaderimg} />
+                <p className={classes.levelbadge} style={{ backgroundColor: "#ebfaeb", marginLeft: 20, fontSize: 25 }}>🏆 {score}</p>
+              </div>
+              <p style={{ "marginTop": 30 }}>List Of PRs: </p>
               {links}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <button onClick={handleClose} color="primary" style={{ background: "#FA6329", border: "none", padding: 10, color: "white" }}>
+            <button onClick={handleClose} color="primary" style={{ background: "#FA6329", border: "none", padding: 15, color: "white", borderRadius: 5, cursor: "pointer", marginRight: 10 }}>
               Close
-                            </button>
+            </button>
           </DialogActions>
         </Dialog>
       </div>
